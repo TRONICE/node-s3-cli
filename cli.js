@@ -18,7 +18,7 @@ var argOptions = {
     'max-async': 20,
     'region': null,
     'endpoint': null,
-    'signature-version': 'v2',
+    'signature-version': null,
     'default-mime-type': null,
     'add-header': null,
     'ignore': null,
