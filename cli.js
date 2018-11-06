@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 
 var minimist = require('minimist');
 var osenv = require('osenv');
@@ -5,23 +6,27 @@ var humanSize = require('human-size');
 var ini = require('ini');
 var fs = require('fs');
 var path = require('path');
-var s3 = require('@cameni/s3');
+var s3 = require('s3');
 var url = require('url');
 var http = require('http');
 var https = require('https');
 var argOptions = {
   'default': {
-    'config': '.s3cfg',//path.join(osenv.home(), '.s3cfg'),
+    'config': fs.existsSync('.s3cfg') ? '.s3cfg' : path.join(osenv.home(), '.s3cfg'),
     'delete-removed': false,
     'max-sockets': 20,
-    'max-async': 8,
-    'region': 'nyc3',
-    'endpoint': 'nyc3.digitaloceanspaces.com',
-    'signature-version': 'v2',
+    'max-async': 20,
+    'region': null,
+    'endpoint': null,
+    'signature-version': null,
     'default-mime-type': null,
     'add-header': null,
     'ignore': null,
     'list' : null,
+    'retry-delay': 1000,
+    'retry-count': 3,
+    'progress': true,
+    'verbose': false,
   },
   'boolean': [
     'recursive',
@@ -32,6 +37,8 @@ var argOptions = {
     'no-guess-mime-type',
     'requester-pays',
     'reverse',
+    'progress',
+    'verbose',
   ],
   'alias': {
     'P': 'acl-public',
@@ -72,20 +79,21 @@ fs.readFile(args.config, {encoding: 'utf8'}, function(err, contents) {
     return;
   }
   var config = ini.parse(contents);
-  var accessKeyId, secretAccessKey;
+  var accessKeyId, secretAccessKey, endpoint;
   if (config && config.default) {
     accessKeyId = config.default.access_key;
     secretAccessKey = config.default.secret_key;
+    endpoint = (args.endpoint == null ? config.default.host_base : args.endpoint);
   }
   if (!secretAccessKey || !accessKeyId) {
     console.error("Config file missing access_key or secret_key");
     process.exit(1);
     return;
   }
-  setup(secretAccessKey, accessKeyId);
+  setup(secretAccessKey, accessKeyId, endpoint);
 });
 
-function setup(secretAccessKey, accessKeyId) {
+function setup(secretAccessKey, accessKeyId, endpoint) {
   var maxSockets = parseInt(args['max-sockets'], 10);
   http.globalAgent.maxSockets = maxSockets;
   https.globalAgent.maxSockets = maxSockets;
@@ -95,14 +103,13 @@ function setup(secretAccessKey, accessKeyId) {
       secretAccessKey: secretAccessKey,
       sslEnabled: !args.insecure,
       region: args.region,
-      endpoint: args.endpoint,
+      endpoint: endpoint,
       signatureVersion: args['signature-version'],
     },
     ignore: args.ignore,
-    s3RetryDelay: 20000,
-    s3RetryCount: 3,
-    maxAsyncS3: parseInt(args['max-async'], 8),
-    maxAsyncS3Del: 2,
+    s3RetryDelay: args['restry-delay'],
+    s3RetryCount: args['restry-count'],
+    maxAsyncS3: parseInt(args['max-async'], 20),
   });
   var cmd = args._.shift();
   var fn = fns[cmd];
@@ -185,14 +192,22 @@ function cmdSync(fndone) {
 }
 
 function uploadGetS3Params(filePath, stat, callback) {
-  //console.error("Uploading", filePath);
+  if(args['verbose'] == true)
+  {
+    console.log("Uploading", filePath);
+  }
+  
   callback(null, {
     ContentType: getContentType(),
   });
 }
 
 function downloadGetS3Params(filePath, s3Object, callback) {
-  //console.error("Downloading", filePath);
+  if(args['verbose'] == true)
+  {
+    console.log("Uploading", filePath);
+  }
+  
   callback(null, {});
 }
 
@@ -405,6 +420,11 @@ function getAcl() {
 }
 
 function setUpProgress(o, notBytes, donefn) {
+  if(args['progress'] == false)
+  {
+    return;
+  }  
+  
   var start = null;
   donefn = donefn || function() {process.stderr.write("\ndone\n");};
   var printFn = process.stderr.isTTY ? printProgress : noop;
@@ -455,6 +475,12 @@ function setUpProgress(o, notBytes, donefn) {
     process.stderr.clearLine();
     process.stderr.cursorTo(0);
     process.stderr.write(line);
+    
+    if(args['verbose'] == true)
+    {
+        //force newline
+        console.error("");
+    }    
   }
 }
 
