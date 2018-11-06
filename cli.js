@@ -16,7 +16,6 @@ var argOptions = {
     'delete-removed': false,
     'max-sockets': 20,
     'max-async': 20,
-    'max-async-del': 2,
     'region': null,
     'endpoint': null,
     'signature-version': 'v2',
@@ -111,7 +110,6 @@ function setup(secretAccessKey, accessKeyId, endpoint) {
     s3RetryDelay: parseInt(args['restry-delay']),
     s3RetryCount: parseInt(args['restry-count']),
     maxAsyncS3: parseInt(args['max-async']),
-    maxAsyncS3Del: parseInt(args['max-async-del']),
   });
   var cmd = args._.shift();
   var fn = fns[cmd];
