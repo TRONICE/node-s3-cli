@@ -19,7 +19,7 @@ var argOptions = {
     'max-async-del': 2,
     'region': null,
     'endpoint': null,
-    'signature-version': null,
+    'signature-version': 'v2',
     'default-mime-type': null,
     'add-header': null,
     'ignore': null,
