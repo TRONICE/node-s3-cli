@@ -474,13 +474,7 @@ function setUpProgress(o, notBytes, donefn) {
     var line = parts.join(", ");
     process.stderr.clearLine();
     process.stderr.cursorTo(0);
-    process.stderr.write(line);
-    
-    if(args['verbose'] == true)
-    {
-        //force newline
-        console.error("");
-    }    
+    process.stderr.write(line);  
   }
 }
 
